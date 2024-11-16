@@ -30,6 +30,11 @@ const connectDB = async () => {
 // Routes
 app.use("/api/users", userRoutes); // Register user routes
 
+const appointmentRoutes = require("./routes/appointmentRoutes");
+
+// Routes
+app.use("/api/appointments", appointmentRoutes);
+
 // Simple route
 app.get("/", (req, res) => {
   res.send("Doctors Appointment API");
