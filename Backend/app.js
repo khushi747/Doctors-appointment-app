@@ -2,7 +2,10 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bodyParser = require("body-parser");
-require("dotenv").config();
+const dotenv = require("dotenv");
+const userRoutes = require("./routes/userRoutes");
+
+dotenv.config();
 
 const app = express();
 
@@ -24,14 +27,16 @@ const connectDB = async () => {
   }
 };
 
+// Routes
+app.use("/api/users", userRoutes); // Register user routes
+
 // Simple route
 app.get("/", (req, res) => {
   res.send("Doctors Appointment API");
 });
 
-// Port
+// Start the server
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   connectDB();
