@@ -1,26 +1,23 @@
 const mongoose = require("mongoose");
 
-const appointmentSchema = new mongoose.Schema({
-  patientId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
+const appointmentSchema = new mongoose.Schema(
+  {
+    patient: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    doctor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    appointmentTime: { type: Date, required: true },
   },
-  doctorId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-  },
-  date: {
-    type: String, // Could be a string in ISO format or Date object
-    required: true,
-  },
-  status: {
-    type: String,
-    enum: ["Pending", "Confirmed", "Rejected"],
-    default: "Pending",
-  },
-});
+  {
+    timestamps: true,
+  }
+);
 
 const Appointment = mongoose.model("Appointment", appointmentSchema);
 

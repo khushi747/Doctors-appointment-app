@@ -1,11 +1,12 @@
 const express = require("express");
 const Appointment = require("../models/Appointment");
 const User = require("../models/User");
+const { protect } = require("./userRoutes"); // Import 'protect' middleware from userRoutes
 
 const router = express.Router();
 
 // Book Appointment
-router.post("/book", async (req, res) => {
+router.post("/book", protect(["patient"]), async (req, res) => {
   const { patientId, doctorId, date } = req.body;
 
   try {
@@ -15,18 +16,6 @@ router.post("/book", async (req, res) => {
 
     if (!patient || !doctor) {
       return res.status(400).json({ message: "Patient or Doctor not found" });
-    }
-
-    // Check if the doctor is available at the given time
-    const existingAppointment = await Appointment.findOne({
-      doctorId,
-      date,
-    });
-
-    if (existingAppointment) {
-      return res
-        .status(400)
-        .json({ message: "Doctor is already booked at this time" });
     }
 
     // Create new appointment
@@ -48,17 +37,36 @@ router.post("/book", async (req, res) => {
   }
 });
 
-// Get Appointments for a Doctor
-router.get("/doctor/:doctorId", async (req, res) => {
+// Get all appointments for a specific patient
+router.get(
+  "/patient/:patientId",
+  protect(["patient", "doctor"]),
+  async (req, res) => {
+    const { patientId } = req.params;
+
+    try {
+      const appointments = await Appointment.find({ patientId });
+
+      if (!appointments.length) {
+        return res.status(404).json({ message: "No appointments found" });
+      }
+
+      res.status(200).json({ appointments });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+// Get all appointments for a specific doctor
+router.get("/doctor/:doctorId", protect(["doctor"]), async (req, res) => {
   const { doctorId } = req.params;
 
   try {
-    // Find appointments for the given doctor
-    const appointments = await Appointment.find({ doctorId })
-      .populate("patientId", "name email") // Populate patient details
-      .exec();
+    const appointments = await Appointment.find({ doctorId });
 
-    if (!appointments || appointments.length === 0) {
+    if (!appointments.length) {
       return res
         .status(404)
         .json({ message: "No appointments found for this doctor" });
@@ -71,55 +79,30 @@ router.get("/doctor/:doctorId", async (req, res) => {
   }
 });
 
-// Get Appointments for a Patient
-router.get("/patient/:patientId", async (req, res) => {
-  const { patientId } = req.params;
-
-  try {
-    // Find appointments for the given patient
-    const appointments = await Appointment.find({ patientId })
-      .populate("doctorId", "name email role") // Populate doctor details
-      .exec();
-
-    if (!appointments || appointments.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No appointments found for this patient" });
-    }
-
-    res.status(200).json({ appointments });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// Update Appointment Status (Doctor Confirms/Rejects)
-router.patch("/status/:appointmentId", async (req, res) => {
+// Confirm or reject appointment by doctor
+router.put("/confirm/:appointmentId", protect(["doctor"]), async (req, res) => {
   const { appointmentId } = req.params;
-  const { status } = req.body; // Expecting 'Confirmed' or 'Rejected'
+  const { status } = req.body; // status can be 'confirmed' or 'rejected'
 
   try {
-    // Validate status
-    if (!["Confirmed", "Rejected"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
-    // Find and update the appointment
-    const appointment = await Appointment.findByIdAndUpdate(
-      appointmentId,
-      { status },
-      { new: true }
-    );
+    const appointment = await Appointment.findById(appointmentId);
 
     if (!appointment) {
       return res.status(404).json({ message: "Appointment not found" });
     }
 
-    res.status(200).json({
-      message: `Appointment ${status}`,
-      appointment,
-    });
+    if (appointment.doctorId.toString() !== req.user.id) {
+      return res.status(403).json({
+        message: "You are not authorized to confirm this appointment",
+      });
+    }
+
+    appointment.status = status;
+    await appointment.save();
+
+    res
+      .status(200)
+      .json({ message: `Appointment ${status} successfully`, appointment });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });

@@ -1,48 +1,34 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
-const userRoutes = require("./routes/userRoutes");
+
+// const { router: userRouter } = require("./routes/userRoutes");
+// app.js
+const { router: userRouter, protect } = require("./routes/userRoutes");
+const appointmentRouter = require("./routes/appointmentRoutes");
+const appoRoutes = require("./routes/appoRoutes");
+
 
 dotenv.config();
-
 const app = express();
 
 // Middleware
+app.use(express.json());
 app.use(cors());
-app.use(bodyParser.json());
-
-// Database connection
-const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    console.log("Connected to MongoDB");
-  } catch (error) {
-    console.error(error);
-    process.exit(1);
-  }
-};
 
 // Routes
-app.use("/api/users", userRoutes); // Register user routes
+app.use("/api/users", userRouter); // Set up the /api/users route
+app.use("/api/appointments", appointmentRouter); // Set up the /api/appointments route
 
-const appointmentRoutes = require("./routes/appointmentRoutes");
+// Connect to MongoDB
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("Database connected"))
+  .catch((err) => console.error("Database connection error:", err));
 
-// Routes
-app.use("/api/appointments", appointmentRoutes);
-
-// Simple route
-app.get("/", (req, res) => {
-  res.send("Doctors Appointment API");
-});
-
-// Start the server
+// Server setup
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  connectDB();
+  console.log(`Server running on port ${PORT}`);
 });
